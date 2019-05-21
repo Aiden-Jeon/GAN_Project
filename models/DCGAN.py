@@ -63,7 +63,7 @@ class Discriminator(nn.Module):
         return self.features(x).squeeze().view(-1,1)
 
 
-class trainer:
+class Trainer:
     def __init__(self, D, D_optimizer, G, G_optimizer, dtype):
         self.D = D
         self.D_optimizer = D_optimizer
