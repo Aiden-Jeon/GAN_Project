@@ -90,7 +90,7 @@ class Trainer:
     
     def train(self, num_epochs, data_loader, loss_fn, print_every, num_img):
         for epoch in range(num_epochs):
-        	print('Starting %d/%d' % (epoch+1, num_epochs+1))
+            print('Starting %d/%d' % (epoch+1, num_epochs+1))
             self.G.train()
             self.D.train()
             total_G_loss = 0
