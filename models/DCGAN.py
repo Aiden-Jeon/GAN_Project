@@ -4,6 +4,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 from math import log2, sqrt
 import matplotlib.pyplot as plt
+import time
 
 class Generator(nn.Module):
     def __init__(self, latent_dim, input_size, hidden_dim, dtype):
@@ -90,7 +91,8 @@ class Trainer:
     
     def train(self, num_epochs, data_loader, loss_fn, print_every, num_img):
         for epoch in range(num_epochs):
-            print('Starting %d/%d' % (epoch+1, num_epochs+1))
+            tic = time.time()
+            print('Starting %d/%d' % (epoch+1, num_epochs))
             self.G.train()
             self.D.train()
             total_G_loss = 0
@@ -129,7 +131,8 @@ class Trainer:
                 self.G_optimizer.step()
 
             if (epoch+1) % print_every == 0:
-                print('D loss %.4f, G loss %.4f' % (total_D_loss/(t+1), total_G_loss/(t+1)))
+                toc = time.time()
+                print('Time: %.4f, D loss %.4f, G loss %.4f' % (toc-tic, total_D_loss/(t+1), total_G_loss/(t+1)))
                 self.show_img(num_img, self.G.latent_dim)
 
             self.D_loss_hist += [total_D_loss/(t+1)]
