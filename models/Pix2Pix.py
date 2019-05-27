@@ -15,8 +15,8 @@ class ConvUp(nn.Module):
         features = [nn.Conv2d(input_nc, output_nc, kernel_size, stride, padding)]
         if batch_norm:
             features += [nn.BatchNorm2d(output_nc)]
-#         features += [nn.LeakyReLU(0.2, True)]
-        features += [nn.ReLU(True)]
+        features += [nn.LeakyReLU(0.2, True)]
+        # features += [nn.ReLU(True)]
         self.features = nn.Sequential(*features).type(dtype)
 
     def forward(self, x):
