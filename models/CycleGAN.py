@@ -246,7 +246,7 @@ class Trainer:
             D_A_real,
             Variable(torch.ones(D_A_real.size()).type(self.dtype))
         )
-        fakeB = self.fakeB_store.query(fakeB)
+        # fakeB = self.fakeB_store.query(fakeB)
         D_A_fake = self.D_A(fakeB)
         D_A_fake_loss = self.MSE_loss(
             D_A_fake,
@@ -267,7 +267,7 @@ class Trainer:
             D_B_real,
             Variable(torch.ones(D_B_real.size()).type(self.dtype))
         )
-        fakeA = self.fakeA_store.query(fakeA)
+        # fakeA = self.fakeA_store.query(fakeA)
         D_B_fake = self.D_B(fakeA)
         D_B_fake_loss = self.MSE_loss(
             D_B_fake,
@@ -281,7 +281,7 @@ class Trainer:
 
         return D_B_loss.cpu().data
 
-    def train(self, num_epochs, data_A_loader, data_B_loader, print_every, num_img):
+    def train(self, num_epochs, data_A_loader, data_B_loader, print_every):
         for epoch in range(num_epochs):
             tic = time.time()
             print('Starting %d/%d' % (epoch+1, num_epochs))
@@ -309,6 +309,9 @@ class Trainer:
                 total_G_B_loss += G_B_loss
                 total_A_cycle_loss += A_cycle_loss
                 total_B_cycle_loss += B_cycle_loss
+
+                fakeA = self.fakeA_store.query(fakeA)
+                fakeB = self.fakeB_store.query(fakeB)
 
                 D_A_loss = self.D_A_backward(realA, fakeA)
                 total_D_A_loss += D_A_loss
