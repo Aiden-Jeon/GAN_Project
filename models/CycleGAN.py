@@ -180,8 +180,7 @@ class Trainer:
         self.fakeB_store = ImagePool(50)
         
         self.train_hist = {}
-        
-        self.BCE_loss = nn.BCELoss().type(dtype)
+
         self.MSE_loss = nn.MSELoss().type(dtype)
         self.L1_loss = nn.L1Loss().type(dtype)
         
@@ -207,80 +206,6 @@ class Trainer:
             plt.imshow(x[0])
         plt.show()
 
-    def G_backward(self, realA, realB, fakeA, fakeB):
-        ## generate real A to fake B
-        # fakeB = self.G_A(realA)
-        D_A_result = self.D_A(fakeB)
-        G_A_loss = self.MSE_loss(
-            D_A_result,
-            Variable(torch.ones(D_A_result.size())).type(self.dtype)
-        )
-        ## reconstruct fake B to A
-        recA = self.G_B(fakeB)
-        A_cycle_loss = self.L1_loss(recA, realA) * self.lambdaA
-        ## generate real B to fake A
-        # fakeA = self.G_A(realB)
-        D_B_result = self.D_B(fakeA)
-        G_B_loss = self.MSE_loss(
-            D_B_result,
-            Variable(torch.ones(D_B_result.size())).type(self.dtype)
-        )
-        ## reconstruct fake B to A
-        recB = self.G_A(fakeA)
-        B_cycle_loss = self.L1_loss(recB, realB) * self.lambdaB
-        # Sum losses
-        G_loss = G_A_loss + G_B_loss + A_cycle_loss + B_cycle_loss
-        self.G_optimizer.zero_grad()
-        G_loss.backward()
-        self.G_optimizer.step()
-
-        return (G_A_loss.cpu().data, 
-            G_B_loss.cpu().data, 
-            A_cycle_loss.cpu().data, 
-            B_cycle_loss.cpu().data)
-
-    def D_A_backward(self, realB, fakeB):
-        # Train Discriminator A
-        D_A_real = self.D_A(realB)
-        D_A_real_loss = self.MSE_loss(
-            D_A_real,
-            Variable(torch.ones(D_A_real.size()).type(self.dtype))
-        )
-        # fakeB = self.fakeB_store.query(fakeB)
-        D_A_fake = self.D_A(fakeB)
-        D_A_fake_loss = self.MSE_loss(
-            D_A_fake,
-            Variable(torch.zeros(D_A_fake.size()).type(self.dtype))
-        )
-        D_A_loss = (D_A_real_loss + D_A_fake_loss) * 0.5
-        
-        self.D_A_optimizer.zero_grad()
-        D_A_loss.backward()
-        self.D_A_optimizer.step()
-
-        return D_A_loss.cpu().data
-
-    def D_B_backward(self, realA, fakeA):
-        # Train discriminator B
-        D_B_real = self.D_B(realA)
-        D_B_real_loss = self.MSE_loss(
-            D_B_real,
-            Variable(torch.ones(D_B_real.size()).type(self.dtype))
-        )
-        # fakeA = self.fakeA_store.query(fakeA)
-        D_B_fake = self.D_B(fakeA)
-        D_B_fake_loss = self.MSE_loss(
-            D_B_fake,
-            Variable(torch.zeros(D_B_fake.size()).type(self.dtype))
-        )
-        D_B_loss = (D_B_real_loss + D_B_fake_loss) * 0.5
-        
-        self.D_B_optimizer.zero_grad()
-        D_B_loss.backward()
-        self.D_B_optimizer.step()
-
-        return D_B_loss.cpu().data
-
     def train(self, num_epochs, data_A_loader, data_B_loader, print_every):
         for epoch in range(num_epochs):
             tic = time.time()
@@ -299,36 +224,88 @@ class Trainer:
             total_D_B_loss = 0
             for (realA, _), (realB, _) in zip(data_A_loader, data_B_loader):
                 realA = Variable(realA.type(self.dtype))
-                realB = Variable(realB.type(self.dtype))
-                fakeA = self.G_A(realB)
+                realB = Variable(realB.type(self.dtype))                
+               	# Train Generator
+                ## generate real A to fake B
                 fakeB = self.G_A(realA)
+                D_A_result = self.D_A(fakeB)
+                G_A_loss = self.MSE_loss(
+                    D_A_result,
+                    Variable(torch.ones(D_A_result.size())).type(self.dtype)
+                )
+                ## reconstruct fake B to A
+                recA = self.G_B(fakeB)
+                A_cycle_loss = self.L1_loss(recA, realA) * self.lambdaA
+                ## generate real B to fake A
+                fakeA = self.G_A(realB)
+                D_B_result = self.D_B(fakeA)
+                G_B_loss = self.MSE_loss(
+                    D_B_result,
+                    Variable(torch.ones(D_B_result.size())).type(self.dtype)
+                )
+                ## reconstruct fake B to A
+                recB = self.G_A(fakeA)
+                B_cycle_loss = self.L1_loss(recB, realB) * self.lambdaB
+                # Sum losses
+                G_loss = G_A_loss + G_B_loss + A_cycle_loss + B_cycle_loss
+                self.G_optimizer.zero_grad()
+                G_loss.backward()
+                self.G_optimizer.step()
 
-                G_A_loss, G_B_loss, A_cycle_loss, B_cycle_loss = self.G_backward(realA, realB, fakeA, fakeB)
-                
-                total_G_A_loss += G_A_loss
-                total_G_B_loss += G_B_loss
-                total_A_cycle_loss += A_cycle_loss
-                total_B_cycle_loss += B_cycle_loss
+                total_G_A_loss += G_A_loss.cpu().data
+                total_G_B_loss += G_B_loss.cpu().data
+                total_A_cycle_loss += A_cycle_loss.cpu().data
+                total_B_cycle_loss += B_cycle_loss.cpu().data
 
-                fakeA = self.fakeA_store.query(fakeA)
+
+                # Train Discriminator A
+                D_A_real = self.D_A(realB)
+                D_A_real_loss = self.MSE_loss(
+                    D_A_real,
+                    Variable(torch.ones(D_A_real.size()).type(self.dtype))
+                )
                 fakeB = self.fakeB_store.query(fakeB)
+                D_A_fake = self.D_A(fakeB)
+                D_A_fake_loss = self.MSE_loss(
+                    D_A_fake,
+                    Variable(torch.zeros(D_A_fake.size()).type(self.dtype))
+                )
+                D_A_loss = (D_A_real_loss + D_A_fake_loss) * 0.5
+                
+                self.D_A_optimizer.zero_grad()
+                D_A_loss.backward()
+                self.D_A_optimizer.step()
+                
+                total_D_A_loss += D_A_loss.cpu().data
 
-                D_A_loss = self.D_A_backward(realA, fakeA)
-                total_D_A_loss += D_A_loss
+                # Train discriminator B
+                D_B_real = self.D_B(realA)
+                D_B_real_loss = self.MSE_loss(
+                    D_B_real,
+                    Variable(torch.ones(D_B_real.size()).type(self.dtype))
+                )
+                fakeA = self.fakeA_store.query(fakeA)
+                D_B_fake = self.D_B(fakeA)
+                D_B_fake_loss = self.MSE_loss(
+                    D_B_fake,
+                    Variable(torch.zeros(D_B_fake.size()).type(self.dtype))
+                )
+                D_B_loss = (D_B_real_loss + D_B_fake_loss) * 0.5
                 
-                D_B_loss = self.D_B_backward(realB, fakeB)
-                total_D_B_loss += D_B_loss
-                
+                self.D_B_optimizer.zero_grad()
+                D_B_loss.backward()
+                self.D_B_optimizer.step()
+                total_D_A_loss += D_B_loss.cpu().data
+
             toc = time.time()
             self.train_hist[epoch]={
                 'D_A_loss': total_D_A_loss / len(data_A_loader),
                 'D_B_loss': total_D_B_loss / len(data_A_loader),
                 'G_A_loss': total_G_A_loss / len(data_A_loader),
                 'G_B_loss': total_G_B_loss / len(data_A_loader),
-                'G_B_loss': total_G_B_loss / len(data_A_loader),
                 'A_cycle_loss': total_A_cycle_loss / len(data_A_loader),
                 'B_cycle_loss': total_B_cycle_loss / len(data_A_loader),
-                'epoch_time': toc-tic
+                'epoch_time': round(toc-tic, 2)
             }
             if (epoch+1) % print_every == 0:
                 print(self.train_hist[epoch])
